@@ -5,6 +5,7 @@ import os
 import logging
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -29,6 +30,27 @@ def extract_user_id(url):
         logger.error(f"Error extracting user ID from URL: {str(e)}")
         raise ValueError(f"Invalid Google Scholar URL: {str(e)}")
 
+def upload_to_render_storage(file_path, content):
+    """Upload content to Render's object storage."""
+    storage_key = os.getenv('RENDER_STORAGE_KEY')
+    if not storage_key:
+        raise ValueError("RENDER_STORAGE_KEY not set")
+    
+    try:
+        # Upload to Render's object storage service
+        headers = {'Authorization': f'Bearer {storage_key}'}
+        files = {'file': ('citations.bib', content)}
+        response = requests.post(
+            'https://api.render.com/v1/storage',
+            headers=headers,
+            files=files
+        )
+        response.raise_for_status()
+        return response.json()['url']
+    except Exception as e:
+        logger.error(f"Error uploading to storage: {str(e)}")
+        raise
+
 app = Flask(__name__)
 
 # Register health check routes
@@ -50,17 +72,28 @@ except ValueError as e:
 # Initialize ScholarToBibtex
 scholar_to_bibtex = ScholarToBibtex(
     serpapi_key=os.getenv('SERPAPI_KEY'),
-    output_dir=os.getenv('OUTPUT_DIR', '/app/data'),
+    output_dir=os.getenv('OUTPUT_DIR', '/tmp/data'),
     user_id=user_id
 )
 
 @app.route('/update', methods=['POST'])
 def update_citations():
     try:
+        # Get citations and save to temporary file
         result = scholar_to_bibtex.update_citations()
+        
+        # Read the generated file
+        temp_file_path = os.path.join(os.getenv('OUTPUT_DIR', '/tmp/data'), 'citations.bib')
+        with open(temp_file_path, 'r') as f:
+            content = f.read()
+        
+        # Upload to Render storage
+        storage_url = upload_to_render_storage(temp_file_path, content)
+        
         return jsonify({
             'status': 'success',
             'message': 'Citations updated successfully',
+            'storage_url': storage_url,
             'details': result
         }), 200
     except Exception as e:
@@ -77,7 +110,7 @@ def get_config():
     return jsonify({
         'scholar_url': scholar_url,
         'user_id': user_id,
-        'output_dir': os.getenv('OUTPUT_DIR', '/app/data')
+        'output_dir': os.getenv('OUTPUT_DIR', '/tmp/data')
     })
 
 @app.errorhandler(404)

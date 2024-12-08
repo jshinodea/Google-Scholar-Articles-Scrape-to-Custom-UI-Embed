@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs').promises;
+const axios = require('axios');
 
 // Configure logger
 const logger = winston.createLogger({
@@ -41,12 +42,30 @@ app.get('/health', (req, res) => {
     });
 });
 
+async function fetchFromStorage() {
+    try {
+        const storageKey = process.env.RENDER_STORAGE_KEY;
+        if (!storageKey) {
+            throw new Error('RENDER_STORAGE_KEY not set');
+        }
+
+        const response = await axios.get('https://api.render.com/v1/storage/citations.bib', {
+            headers: {
+                'Authorization': `Bearer ${storageKey}`
+            }
+        });
+
+        return response.data;
+    } catch (error) {
+        logger.error('Error fetching from storage:', error);
+        throw error;
+    }
+}
+
 // Embed endpoint
 app.get('/embed', async (req, res) => {
     try {
-        const bibFilePath = path.join(process.env.BIB_FILE_DIR || '/app/data', 'citations.bib');
-        const bibContent = await fs.readFile(bibFilePath, 'utf-8');
-        
+        const bibContent = await fetchFromStorage();
         res.render('embed', { citations: bibContent });
     } catch (error) {
         logger.error('Error serving embed:', error);

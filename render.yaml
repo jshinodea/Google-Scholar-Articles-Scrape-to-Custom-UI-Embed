@@ -9,6 +9,8 @@ services:
         value: production
       - key: BIB_FILE_DIR
         value: /app/data
+      - key: RENDER_STORAGE_KEY
+        sync: false
     healthCheckPath: /health
     disk:
       name: bib-data
@@ -29,8 +31,6 @@ services:
       - key: FLASK_ENV
         value: production
       - key: OUTPUT_DIR
-        value: /app/data
-    disk:
-      name: bib-data
-      mountPath: /app/data
-      sizeGB: 1 
+        value: /tmp/data  # Temporary directory for cron job
+      - key: RENDER_STORAGE_KEY
+        sync: false
