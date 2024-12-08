@@ -7,15 +7,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: BIB_FILE_DIR
-        value: /app/data
+      - key: PORT
+        value: 3000
       - key: RENDER_STORAGE_KEY
         sync: false
     healthCheckPath: /health
-    disk:
-      name: bib-data
-      mountPath: /app/data
-      sizeGB: 1
+    port: 3000
 
   - type: cron
     name: scholar-scraper

@@ -34,6 +34,10 @@ app.use(express.json());
 app.use(limiter);
 app.use(express.static('public'));
 
+// Set up view engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
@@ -66,7 +70,24 @@ async function fetchFromStorage() {
 app.get('/embed', async (req, res) => {
     try {
         const bibContent = await fetchFromStorage();
-        res.render('embed', { citations: bibContent });
+        
+        // Send HTML response
+        const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Citations</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .citation { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; }
+            </style>
+        </head>
+        <body>
+            <pre>${bibContent}</pre>
+        </body>
+        </html>`;
+        
+        res.send(html);
     } catch (error) {
         logger.error('Error serving embed:', error);
         res.status(500).json({
