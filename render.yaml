@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: scholar-embed
+    env: docker
+    dockerfilePath: ./Bib-File-to-Embed/Dockerfile
+    dockerContext: ./Bib-File-to-Embed
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BIB_FILE_DIR
+        value: /app/data
+    healthCheckPath: /health
+    disk:
+      name: bib-data
+      mountPath: /app/data
+      sizeGB: 1
+
+  - type: cron
+    name: scholar-scraper
+    env: docker
+    dockerfilePath: ./scholar_to_bibtex/Dockerfile
+    dockerContext: ./scholar_to_bibtex
+    schedule: "0 0 * * *"  # Run at midnight every day
+    envVars:
+      - key: SERPAPI_KEY
+        sync: false  # Indicates this is a secret that needs to be set manually
+      - key: SCHOLAR_PROFILE_URL
+        sync: false  # Also needs to be set manually
+      - key: FLASK_ENV
+        value: production
+      - key: OUTPUT_DIR
+        value: /app/data
+    disk:
+      name: bib-data
+      mountPath: /app/data
+      sizeGB: 1 
